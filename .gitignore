@@ -1,0 +1,7 @@
+*.pyc
+you/
+friends.json
+friends/
+friends_photo/
+messages.json
+messages/
