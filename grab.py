@@ -7,6 +7,9 @@ import os
 import json
 import time
 import operator
+import hashlib
+import requests
+import shutil
 from operator import itemgetter
 from urlparse import urlparse
 from urlparse import parse_qs
@@ -72,180 +75,200 @@ def get_friends():
         get_profile(friend['id'])
 
 
-# Process Message
-def process_message_plain(message):    
-    out = ''
-    if message['message']:
-        out += message['created_time'] + ", " + message['from']['name'] + " wrote:\n"
-        out += message['message'] + '\n'
-        out += "\n"
-    return out
+# Conversations.py
+class Conversations():
 
-def process_message_html(message):
+    def __init__ (self):
+        self.current = 0
 
-    # To (Cc: recipients)
-    to_addr = []
-    for to in message['to']['data']:
-        if to['id'] != message['from']['id']:
-          to_addr.append(to['name'] + "<" + to['email'] + ">")
+    # Process text/plain
+    def process_plain(self, message):
+        out = ''
+        if message['message']:
+            out += message['created_time'] + ", " + message['from']['name'] + " wrote:\n"
+            out += message['message'] + '\n'
+            out += "\n"
+        return out
 
-    # Build text/html
-    out = '      <div class="h-entry">\n'
-    out += '        <time class="dt-published" datetime="' + message['created_time'] + '">' + message['created_time'] + '</time>\n'
-    out += '        <a href="mailto:' + message['from']['email'] + '" class="p-author h-card">\n'
-    out += '          <span class="p-name">' + message['from']['name'] + '</span>\n'
-    out += '          <span class="u-uid" hidden="true">' + message['from']['id'] + '</span>\n'
-    out += '          <span class="u-url" hidden="true">https://facebook.com/' + message['from']['id'] + '</span>\n'
-    out += '        </a>\n'
-    out += '        <span class="e-content p-name">' + message['message'] + '</span>\n'
-    out += '        <span class="u-uid" hidden="true">' + message['id'] + '</span>\n'
+    # Process text/html
+    def process_html(self, message):
+        out = '      <div class="h-entry">\n'
+        out += '        <time class="dt-published" datetime="' + message['created_time'] + '">' + message['created_time'] + '</time>\n'
+        out += '        <a href="mailto:' + message['from']['email'] + '" class="p-author h-card">\n'
+        out += '          <span class="p-name">' + message['from']['name'] + '</span>\n'
+        out += '          <span class="u-uid" hidden="true">' + message['from']['id'] + '</span>\n'
+        out += '          <span class="u-url" hidden="true">https://facebook.com/' + message['from']['id'] + '</span>\n'
+        out += '        </a>\n'
+        out += '        <span class="e-content p-name">' + message['message'] + '</span>\n'
+        out += '        <span class="u-uid" hidden="true">' + message['id'] + '</span>\n'
 
-    # Add Tags
-    for tag in message['tags']['data']:
-        out += '        <span class="p-category" hidden="true">' + tag['name'] + '</span>\n'
+        # Add Tags
+        for tag in message['tags']['data']:
+            out += '        <span class="p-category" hidden="true">' + tag['name'] + '</span>\n'
 
-    # Check Attachments
-    if 'attachments' in message:
-        for attachment in message['attachments']['data']:
-            if 'image_data' in attachment and 'url' in attachment['image_data']:
-                out += '        <span class="p-photo">' + attachment['id'] + '</span>\n'
-            else:
-                out += '        <span class="p-media">' + attachment['id'] + '</span>\n'
-    out += '      </div>\n'
+        # Check Attachments
+        if 'attachments' in message:
+            for attachment in message['attachments']['data']:
+                if 'image_data' in attachment:
+                    out += '        <span class="p-photo">' + attachment['name'] + '</span>\n'
+                else:
+                    out += '        <span class="p-media">' + attachment['name'] + '</span>\n'
+        out += '      </div>\n'
+        return out
 
-    return out
+    # Process attachments
+    def process_attachments(self, message):
+        output = []
+        if 'attachments' in message:
+            for attachment in message['attachments']['data']:
+                attachment_status = 'empty'
+                print "Downloading attachment " + attachment['name']
+                
+                # Is Image else Other
+                if 'image_data' in attachment:
+                    response = requests.get(url = attachment['image_data']['url'], stream=True)
+                    if response.status_code == 200:
+                        attachment_status = 'success'
+                        with open('messages_attachments/' + attachment['name'], 'wb') as out_file:
+                            shutil.copyfileobj(response.raw, out_file)
+                    del response
+                else:
+                    # Facebook doesn't have a Graph API endpoint for attachments so use Request module
+                    # http://stackoverflow.com/questions/9192430/view-attachments-in-threads
+                    # https://developers.facebook.com/bugs/153137724878722?browse=external_tasks_search_results_52517d949d48d3494815922
+                    response = requests.get('https://api.facebook.com/method/messaging.getattachment', params={
+                            'access_token': user_token, 
+                            'mid': message['id'], 
+                            'aid': attachment['id'],
+                            'format': 'json'
+                          })
+                    if response.status_code == 200:
+                        attachment_status = 'success'
+                        json = response.json()
+                        output_file = base64.b64decode(json['data'])
+                        fh2 = open('messages_attachments/' + attachment['name'], 'wb')
+                        fh2.write(output_file)
+                        fh2.close()
+                    del response
+
+                # Add To Parent List
+                output.append(dict({ 'status': attachment_status, 'name': attachment['name'], 'mime': attachment['mime_type'] }))
+
+        return output
 
 
-def process_message_attachments(message):
-    attachments = []
-    if 'attachments' in message:
-        for attachment in message['attachments']['data']:
-        
-            if 'image_data' in attachment:
-                url = attachment['image_data']['url']
-                media = 'photos'
-            else:
-                url = ''
-                media = 'files'
+    def get(self, until):
+    
+        if (until == 'start'):
+            #print 'Now running start'
+            #result = graph.get_object('/me', limit='1000000', fields='id,name,conversations')
+            result = json.loads(open('messages.json').read())
+    
+            # Save Profile Data
+            #with open("messages.json", "w") as outfile:
+            #    json.dump(result, outfile, indent=4)
+        else:
+            print 'Now running ' + until
+            conversations = graph.get_object('/me/inbox', limit="1000000", until=until)
+    
+        # Profile 
+        profile = dict({ 'name': result['name'], 'id': result['id'], 'email': result['id'] + '@facebook.com' })
 
-            # Save Attachment
-            fh2 = open('messages_attachments/' + media + '/' + attachment['name'], "wb")
-            fh2.write(url)
-            fh2.close()
+        # Parse QS for paging
+        parse_result = urlparse(result['conversations']['paging']['next'])
+        query_string = parse_qs(parse_result[4])
 
-            attachments.append(dict({ 'name': attachment['name'], 'mime': attachment['mime_type'] }))
+        # (Pass in result['conversations']['data'])
+        for conversation in result['conversations']['data']:
 
-    return attachments
+            # Create Hash cause Fbook IDs are wonky
+            conversation_id = hashlib.md5(conversation['id']).hexdigest()
+            print "Processing " + conversation_id + " from: " + conversation['id']
 
+            # Create Directory
+            if not os.path.exists("messages/"):
+                os.makedirs("messages/")
 
-# Get Conversations
-def get_conversations(until): #self, paging):
+            # Container Message
+            headers     = 'From social-archiver'
+            header_user = profile['name'] + ' <' + profile['email'] + '>'
+            header_cc   = []
+            names       = []
+            plain       = ''
+            html        = '<html>\n  <body>\n' # Add CSS via http://email-standards.org
+            attachments = []
 
-    if (until == 'start'):
-        #print 'Now running first'
-        #result = graph.get_object('/me', limit='1000000', fields='id,name,conversations')
-        conversations = json.loads(open('messages.json').read())
-        # Save Profile Data
-        with open("messages.json", "w") as outfile:
-            json.dump(result['conversations'], outfile, indent=4)
-    else:
-        print 'Now running ' + until
-        conversations = graph.get_object('/me/inbox', limit="1000000", until=until)
+            # Order by Date
+            ordered_messages = sorted(conversation['messages']['data'], key=itemgetter('created_time'))
 
-    # Profile 
-    profile = dict({ 'name': result['name'], 'email': result['id'] + '@facebook.com' })
+            # Loop Through Messages
+            for message in ordered_messages:
 
-    # Parse QS for paging
-    parse_result = urlparse(result['conversations']['paging']['next'])
-    query_string = parse_qs(parse_result[4])
+                # Headers
+                for to in message['to']['data']:
+                    email = (to['name'] + ' <' + to['email'] + '>').encode('utf-8')
+                    if email not in header_cc and to['email'] != profile['email']:
+                        header_cc.append(email)
+                        names.append(to['name'].encode('utf-8'))
 
-    # Save Messages Data
-    for conversation in result['conversations']['data']:
-
-        print "Processing " + conversation['id']
-
-        # Create Directory
-        if not os.path.exists("messages/"):
-            os.makedirs("messages/")
-
-        # Container Message
-        headers     = 'From social-archiver'
-        header_user = profile['name'] + ' <' + profile['email'] + '>'
-        header_cc   = []
-        names       = []
-        plain       = ''
-        html        = '<html>\n  <body>\n' # Add CSS via http://email-standards.org
-        attachments = []
-
-        # Order by Date
-        ordered_messages = sorted(conversation['messages']['data'], key=itemgetter('created_time')) 
-
-        # Loop Through Messages
-        for message in ordered_messages:
+                # Process Parts
+                plain += self.process_plain(message)
+                html  += self.process_html(message)
+                attachments = attachments + self.process_attachments(message)
 
             # Headers
-            for to in message['to']['data']:
-                email = (to['name'] + ' <' + to['email'] + '>').encode('utf-8')
-                if email not in header_cc and to['email'] != profile['email']:
-                    header_cc.append(email)
-                    names.append(to['name'])
+            header_cc_output = ', '.join(header_cc)
+            header_subject_output = 'Conversation with ' + ', '.join(names)
 
-            # Process Parts
-            plain += process_message_plain(message)
-            html += process_message_html(message)
-            attachments.append(process_message_attachments(message))
+            # Start Message
+            message = StringIO.StringIO()
+            writer = MimeWriter.MimeWriter(message)
+            writer.addheader('From', header_user.encode('utf-8'))
+            writer.addheader('Cc', header_cc_output)
+            writer.addheader('Subject', header_subject_output)
+            writer.startmultipartbody('mixed')
 
-        # Headers
-        message = StringIO.StringIO()
-        writer = MimeWriter.MimeWriter(message)
-        writer.addheader('From', header_user)
-        writer.addheader('Cc', ', '.join(header_cc))
-        writer.addheader('Subject', 'Conversation with ' + str(len(header_cc)) + ' people')
-        writer.startmultipartbody('mixed')
-        
-        # Text part
-        part = writer.nextpart()
-        part.addheader('Content-Disposition', 'inline')
-        part.addheader('Content-Transfer-Encoding', 'base64')
-        body = part.startbody('text/plain; charset=utf-8')
-        body.write(plain.encode('base64'))
+            # Text part
+            part = writer.nextpart()
+            part.addheader('Content-Disposition', 'inline')
+            body = part.startbody('text/plain; charset=utf-8')
+            body.write(plain.encode('utf-8'))
 
-        # HTML part
-        part = writer.nextpart()
-        part.addheader('Content-Disposition', 'inline')
-        part.addheader('Content-Transfer-Encoding', 'base64')
-        body = part.startbody('text/html; charset=utf-8')
-        body.write((html + '  </body>\n</html>\n').encode('base64'))
+            # HTML part
+            part = writer.nextpart()
+            part.addheader('Content-Disposition', 'inline')
+            body = part.startbody('text/html; charset=utf-8')
+            body.write((html + '  </body>\n</html>\n').encode('utf8'))
+    
+            # Attachments
+            if attachments:
+                for attach in attachments:
+                    if attach['status'] == 'success':
+                        print 'Adding Mime Part ' + attach['name']
+                        part = writer.nextpart()
+                        part.addheader('Content-Transfer-Encoding', 'base64')
+                        body = part.startbody(attach['mime'])
+                        base64.encode(open('messages_attachments/' + attach['name'], 'rb'), body)
 
-        # Attachments
-        #part = writer.nextpart()
-        #part.addheader('Content-Transfer-Encoding', 'base64')
-        #body = part.startbody('image/jpeg')
-        #base64.encode(open('messages_attachments/kitten.jpg', 'rb'), body)
-        #print attachments
+            # Finish Email
+            writer.lastpart()
 
-        # Finish off
-        writer.lastpart()
+            # Save TXT
+            f = open("messages/" + conversation_id, "w")
+            f.write(message.getvalue())
+            f.close()
 
-        # Output
-        output = message.getvalue()
-
-        # Save TXT
-        f = open("messages/" + conversation['id'], "w")
-        f.write(output.encode('utf-8'))
-        f.close()
-
-    # print "next: " + query_string['until'][0]
-    #self.until = until
-    #if query_string['until'][0] is not None:
-    #    self.set_until(query_string['until'][0])
-
-#get_profile('/me')
-#get_friends()
-
-get_conversations('start')
+        # print "next: " + query_string['until'][0]
 
 
+myConversations = Conversations() # Instantiate Conversation Class
+myConversations.get('start') # Start Conversation Downloading
+
+
+
+#def main():
+#if __name__ == "__main__":
+#    main()
 
 # Geneate a page with this to make manually deleting friends easier
 # <a href="http://m.facebook.com/3621161" onClick="window.open(this.href, this.target, 'width=500,height=600'); return false;"> Unfriend Name</a>
