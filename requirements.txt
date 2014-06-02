@@ -1,0 +1,5 @@
+PyYAML==3.11
+distribute==0.6.34
+facebook-sdk==0.4.0
+requests==2.3.0
+wsgiref==0.1.2

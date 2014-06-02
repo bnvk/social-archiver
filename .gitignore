@@ -1,8 +1,4 @@
 *.pyc
 config.yaml
-you/
-friends.json
-friends/
-friends_photo/
-messages.json
-messages/
+downloads/
+venv/
