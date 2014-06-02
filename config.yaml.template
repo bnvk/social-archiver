@@ -1,0 +1,5 @@
+# Social-Archiver Config
+facebook_app_id: "PASTE_YOUR_APP_ID"
+facebook_secret: "PASTE_YOUR_SECRET_ID"
+# This should be replaced dynamically and stored somewhere else eventually
+facebook_user_token: ""

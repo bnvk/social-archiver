@@ -1,4 +1,5 @@
 *.pyc
+config.yaml
 you/
 friends.json
 friends/

@@ -1,3 +1,4 @@
+import yaml
 import sys
 import MimeWriter
 import base64
@@ -15,11 +16,28 @@ from urlparse import urlparse
 from urlparse import parse_qs
 from datetime import datetime
 
-# Facebook User Authenticated Token
-user_token = ""
+# Load App Config Values
+config_yaml = open('config.yaml')
+config = yaml.load(config_yaml)
+config_yaml.close()
 
 # Creae Graph Object
-graph = facebook.GraphAPI(user_token)
+graph = facebook.GraphAPI(config['facebook_user_token'])
+
+
+# Make Downloads Folders
+def make_directories(): 
+    if not os.path.exists("downloads/facebook/"):
+        os.makedirs("downloads/facebook/")
+    if not os.path.exists("downloads/facebook/friends/"):
+        os.makedirs("downloads/facebook/friends/")
+    if not os.path.exists("downloads/facebook/friends_photos/"):
+        os.makedirs("downloads/facebook/friends_photos/")
+    if not os.path.exists("downloads/facebook/messages/"):
+        os.makedirs("downloads/facebook/messages/")   
+    if not os.path.exists("downloads/facebook/messages_attachments/"):
+        os.makedirs("downloads/facebook/messages_attachments/")   
+
 
 # Saves Profiles To Disk in json & jpg
 def get_profile(pid):
@@ -27,11 +45,11 @@ def get_profile(pid):
     if not os.path.exists("profiles/" + pid + ".json"):
 
         if pid == '/me':
-            photo_path = "you/"
-            profile_path = "you/"
+            photo_path = "downloads/facebook/you/"
+            profile_path = "downloads/facebook/you/"
         else:
-            photo_path = "friends_photos/"
-            profile_path = "friends/"
+            photo_path = "downloads/facebook/friends_photos/"
+            profile_path = "downloads/facebook/friends/"
 
         # Get Profile & Pic
         profile = graph.get_object(pid)
@@ -58,7 +76,6 @@ def get_profile(pid):
             json.dump(profile, outfile, indent=4)
 
 
-
 # Saves list of friends profiles & pictures
 def get_friends():
 
@@ -66,7 +83,7 @@ def get_friends():
     output = []
 
     # Save Friends list
-    with open("friends.json", "w") as outfile:
+    with open("downloads/facebook/friends.json", "w") as outfile:
         json.dump(friends, outfile, indent=4)
 
     # Proce Each Friend
@@ -129,7 +146,7 @@ class Conversations():
                     response = requests.get(url = attachment['image_data']['url'], stream=True)
                     if response.status_code == 200:
                         attachment_status = 'success'
-                        with open('messages_attachments/' + attachment['name'], 'wb') as out_file:
+                        with open('downloads/facebook/messages_attachments/' + attachment['name'], 'wb') as out_file:
                             shutil.copyfileobj(response.raw, out_file)
                     del response
                 else:
@@ -146,7 +163,7 @@ class Conversations():
                         attachment_status = 'success'
                         json = response.json()
                         output_file = base64.b64decode(json['data'])
-                        fh2 = open('messages_attachments/' + attachment['name'], 'wb')
+                        fh2 = open('downloads/facebook/messages_attachments/' + attachment['name'], 'wb')
                         fh2.write(output_file)
                         fh2.close()
                     del response
@@ -158,13 +175,13 @@ class Conversations():
 
 
     def get(self, until):
-    
+
         if (until == 'start'):
-            #print 'Now running start'
-            #result = graph.get_object('/me', limit='1000000', fields='id,name,conversations')
-            result = json.loads(open('messages.json').read())
-    
-            # Save Profile Data
+            print 'Now running start'
+            result = graph.get_object('/me', limit='1000000', fields='id,name,conversations')
+
+            # Cache for local testing
+            #result = json.loads(open('downloads/facebook/messages.json').read())    
             #with open("messages.json", "w") as outfile:
             #    json.dump(result, outfile, indent=4)
         else:
@@ -184,10 +201,6 @@ class Conversations():
             # Create Hash cause Fbook IDs are wonky
             conversation_id = hashlib.md5(conversation['id']).hexdigest()
             print "Processing " + conversation_id + " from: " + conversation['id']
-
-            # Create Directory
-            if not os.path.exists("messages/"):
-                os.makedirs("messages/")
 
             # Container Message
             headers     = 'From social-archiver'
@@ -239,7 +252,7 @@ class Conversations():
             part.addheader('Content-Disposition', 'inline')
             body = part.startbody('text/html; charset=utf-8')
             body.write((html + '  </body>\n</html>\n').encode('utf8'))
-    
+
             # Attachments
             if attachments:
                 for attach in attachments:
@@ -248,18 +261,20 @@ class Conversations():
                         part = writer.nextpart()
                         part.addheader('Content-Transfer-Encoding', 'base64')
                         body = part.startbody(attach['mime'])
-                        base64.encode(open('messages_attachments/' + attach['name'], 'rb'), body)
+                        base64.encode(open('downloads/messages_attachments/' + attach['name'], 'rb'), body)
 
             # Finish Email
             writer.lastpart()
 
             # Save TXT
-            f = open("messages/" + conversation_id, "w")
+            f = open("downloads/facebook/messages/" + conversation_id, "w")
             f.write(message.getvalue())
             f.close()
 
         # print "next: " + query_string['until'][0]
 
+
+make_directories()
 
 myConversations = Conversations() # Instantiate Conversation Class
 myConversations.get('start') # Start Conversation Downloading
