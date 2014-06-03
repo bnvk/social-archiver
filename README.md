@@ -12,7 +12,7 @@ Go "Create a New App" on Facebook's developer platform [https://developers.faceb
 
 Edit the Facebook config values in config.yaml with the values Facebook gives you
 
-Install python dependencies `$ pip install requirements.txt`
+Install python dependencies `$ pip install -r requirements.txt`
 
 
 ### Use

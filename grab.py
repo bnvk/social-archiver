@@ -154,7 +154,7 @@ class Conversations():
                     # http://stackoverflow.com/questions/9192430/view-attachments-in-threads
                     # https://developers.facebook.com/bugs/153137724878722?browse=external_tasks_search_results_52517d949d48d3494815922
                     response = requests.get('https://api.facebook.com/method/messaging.getattachment', params={
-                            'access_token': user_token, 
+                            'access_token': config['facebook_user_token'], 
                             'mid': message['id'], 
                             'aid': attachment['id'],
                             'format': 'json'
@@ -178,25 +178,17 @@ class Conversations():
 
         if (until == 'start'):
             print 'Now running start'
-            result = graph.get_object('/me', limit='1000000', fields='id,name,conversations')
-
-            # Cache for local testing
-            #result = json.loads(open('downloads/facebook/messages.json').read())    
-            #with open("messages.json", "w") as outfile:
-            #    json.dump(result, outfile, indent=4)
+            result = graph.get_object('/me/conversations', limit=25)
         else:
             print 'Now running ' + until
-            conversations = graph.get_object('/me/inbox', limit="1000000", until=until)
-    
-        # Profile 
-        profile = dict({ 'name': result['name'], 'id': result['id'], 'email': result['id'] + '@facebook.com' })
+            result = graph.get_object('/me/conversations', limit=25, until=until)
 
-        # Parse QS for paging
-        parse_result = urlparse(result['conversations']['paging']['next'])
-        query_string = parse_qs(parse_result[4])
+        # Profile
+        # FIXME: make dynamic
+        profile = dict({ 'name': 'Brennan Novak', 'id': '653983917', 'email': '653983917@facebook.com' })
 
         # (Pass in result['conversations']['data'])
-        for conversation in result['conversations']['data']:
+        for conversation in result['data']:
 
             # Create Hash cause Fbook IDs are wonky
             conversation_id = hashlib.md5(conversation['id']).hexdigest()
@@ -219,10 +211,10 @@ class Conversations():
 
                 # Headers
                 for to in message['to']['data']:
-                    email = (to['name'] + ' <' + to['email'] + '>').encode('utf-8')
+                    email = (to['name'] + ' <' + to['email'] + '>')
                     if email not in header_cc and to['email'] != profile['email']:
                         header_cc.append(email)
-                        names.append(to['name'].encode('utf-8'))
+                        names.append(to['name'])
 
                 # Process Parts
                 plain += self.process_plain(message)
@@ -236,7 +228,7 @@ class Conversations():
             # Start Message
             message = StringIO.StringIO()
             writer = MimeWriter.MimeWriter(message)
-            writer.addheader('From', header_user.encode('utf-8'))
+            writer.addheader('From', header_user)
             writer.addheader('Cc', header_cc_output)
             writer.addheader('Subject', header_subject_output)
             writer.startmultipartbody('mixed')
@@ -245,13 +237,13 @@ class Conversations():
             part = writer.nextpart()
             part.addheader('Content-Disposition', 'inline')
             body = part.startbody('text/plain; charset=utf-8')
-            body.write(plain.encode('utf-8'))
+            body.write(plain)
 
             # HTML part
             part = writer.nextpart()
             part.addheader('Content-Disposition', 'inline')
             body = part.startbody('text/html; charset=utf-8')
-            body.write((html + '  </body>\n</html>\n').encode('utf8'))
+            body.write((html + '  </body>\n</html>\n'))
 
             # Attachments
             if attachments:
@@ -261,24 +253,30 @@ class Conversations():
                         part = writer.nextpart()
                         part.addheader('Content-Transfer-Encoding', 'base64')
                         body = part.startbody(attach['mime'])
-                        base64.encode(open('downloads/messages_attachments/' + attach['name'], 'rb'), body)
+                        base64.encode(open('downloads/facebook/messages_attachments/' + attach['name'], 'rb'), body)
 
             # Finish Email
             writer.lastpart()
 
             # Save TXT
-            f = open("downloads/facebook/messages/" + conversation_id, "w")
-            f.write(message.getvalue())
-            f.close()
+            mbox = open("downloads/facebook/messages/" + conversation_id, "w")
+            mbox.write(message.getvalue().encode('utf-8'))
+            mbox.close()
 
-        # print "next: " + query_string['until'][0]
+        # Parse QS for paging
+        parse_result = urlparse(result['paging']['next'])
+        query_string = parse_qs(parse_result[4])
+
+        print "Restarting with until: " + query_string['until'][0]
+        self.get(query_string['until'][0])
 
 
 make_directories()
 
 myConversations = Conversations() # Instantiate Conversation Class
 myConversations.get('start') # Start Conversation Downloading
-
+#test = graph.get_object('/me', fields='id,name,conversations', limit=10000, since=1391281484)
+#test = graph.get_object('/me/conversations', limit=25, until=1395281484)
 
 
 #def main():
