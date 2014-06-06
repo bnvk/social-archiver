@@ -37,7 +37,10 @@ def make_directories():
         os.makedirs("downloads/facebook/messages/")   
     if not os.path.exists("downloads/facebook/messages_attachments/"):
         os.makedirs("downloads/facebook/messages_attachments/")   
-
+    if not os.path.exists("downloads/facebook/you/"):
+        os.makedirs("downloads/facebook/you/")
+    if not os.path.exists("downloads/facebook/you_photos/"):
+        os.makedirs("downloads/facebook/you_photos/")
 
 # Saves Profiles To Disk in json & jpg
 def get_profile(pid):
@@ -92,7 +95,73 @@ def get_friends():
         get_profile(friend['id'])
 
 
-# Conversations.py
+# Photos
+class Photos():
+
+    def __init__ (self):
+        self.current = 0
+
+    def test(self):
+
+        result = graph.get_object('/me/photos', limit=100)
+
+        # Parse QS for paging
+        parse_result = urlparse(result['paging']['next'])
+        query_string = parse_qs(parse_result[4])
+
+        print parse_result
+        print query_string
+        print query_string['until'][0]
+
+    def get_tagged(self, until):
+
+        if (until == 'start'):
+            print 'Now running photos start'
+            result = graph.get_object('/me/photos', limit=100)
+        else:
+            print 'Now running photos ' + until
+            result = graph.get_object('/me/photos', limit=100, until=until)
+  
+        # Save Photos json
+        with open("downloads/facebook/you_photos.json", "w") as outfile:
+            json.dump(result, outfile, indent=4)
+  
+        # Loop Through Pictures
+        if result['data']:
+            for photo in result['data']:
+        
+                pic_url    = photo['picture'] 
+                parsed_url = urlparse(pic_url)
+                split_url  = parsed_url.path.split('/')
+                pic_name   = split_url[len(split_url) - 1]
+        
+                # Download Full Picture
+                print "Downloading pic thumb_" + pic_name
+                response = requests.get(url = pic_url, stream=True)
+                if response.status_code == 200:
+                    with open("downloads/facebook/you_photos/thumb_" + pic_name, 'wb') as out_file:
+                        shutil.copyfileobj(response.raw, out_file)
+                del response
+        
+                # Download Full Picture
+                print "Downloading pic " + pic_name
+                response = requests.get(url = photo['images'][0]['source'], stream=True)
+                if response.status_code == 200:
+                    with open("downloads/facebook/you_photos/" + pic_name, 'wb') as out_file:
+                        shutil.copyfileobj(response.raw, out_file)
+                del response
+    
+            # Parse QS for paging
+            parse_result = urlparse(result['paging']['next'])
+            query_string = parse_qs(parse_result[4])
+            
+            print "Restarting with until: " + query_string['until'][0]
+            self.get_tagged(query_string['until'][0])
+
+        else:
+            print "Empty photos result"        
+
+# Conversations
 class Conversations():
 
     def __init__ (self):
@@ -178,10 +247,10 @@ class Conversations():
 
         if (until == 'start'):
             print 'Now running start'
-            result = graph.get_object('/me/conversations', limit=25)
+            result = graph.get_object('/me/conversations', limit=100)
         else:
             print 'Now running ' + until
-            result = graph.get_object('/me/conversations', limit=25, until=until)
+            result = graph.get_object('/me/conversations', limit=100, until=until)
 
         # Profile
         # FIXME: make dynamic
@@ -273,10 +342,12 @@ class Conversations():
 
 make_directories()
 
-myConversations = Conversations() # Instantiate Conversation Class
-myConversations.get('start') # Start Conversation Downloading
-#test = graph.get_object('/me', fields='id,name,conversations', limit=10000, since=1391281484)
-#test = graph.get_object('/me/conversations', limit=25, until=1395281484)
+myPhotos = Photos()
+#myPhotos.get_tagged('start')
+myPhotos.test()
+
+#myConversations = Conversations() # Instantiate Conversahttp://s3-ec.buzzfed.com/static/2014-06/1/18/enhanced/webdr07/enhanced-5653-1401661233-3.jpgtion Class
+#myConversations.get('start') # Start Conversation Downloading
 
 
 #def main():
