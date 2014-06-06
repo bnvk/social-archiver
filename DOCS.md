@@ -88,15 +88,12 @@ Content-Transfer-Encoding: 8bit
 --OTHERBOUNDARYSTRING
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-Content-Transfer-Encoding: base64
 
-BASE64 ENCODED TEXT REPRESENTATION OF CONVERSATION - why base64 encoded? seems like if you have the full base64-encoded html version below but are including plaintext for fallback, might be better to include in plain text so it's still human readable if someone opens the file -aaronpk
+25 May 2014 3:01, Mr. Mork: 
+Nano, nano! Some message text here!
 
-25 May 2014 3:01, Rick James: 
-How's frostland?
-
-25 May 2014 03:01, Brennan Novak:
-Any travel plans for you coming up?
+25 May 2014 03:01, Ms. Mindy:
+Moar message text will go here
 
 
 --OTHERBOUNDARYSTRING
@@ -106,10 +103,33 @@ Content-Transfer-Encoding: base64
 
 BASE 64 encoded:
     
-    <div class="h-entry">
-  <time class="dt-published" datetime="2014-05-01T10:48:00+00:00">2014-05-01 10:48:00</time>    <a href="sms:+15035551212" class="p-author h-card">Cool Dude</a>   <span class="e-content p-name">Message text here</span> </div> <div class="h-entry">   <time class="dt-published" datetime="2014-05-01T10:49:00+00:00">2014-05-01 10:49:00</time>    <a href="mailto:aaron@parecki.com" class="p-author h-card">Aaron Parecki</a>    <span class="e-content p-name">Message text here</span> </div> 
-  lkjdf;lkfjl;kafjklsfj
-  alfj;lafj
+<div class="h-entry">
+  <time class="dt-published" datetime="2014-05-01T10:48:00+00:00">2014-05-01 10:48:00</time>
+  <a href="mailto:123456789@facebook.com" class="p-author h-card">
+    <span class="p-name">Mr. Mork</span>
+    <span class="u-uid" hidden="true">123456789</span>
+    <span class="u-url" hidden="true">https://facebook.com/123456789</span>
+  </a>
+  <span class="e-content p-name">Nano, nano! Some message text here!</span>
+  <span class="u-uid" hidden="true">m_mid.6d2c628</span>
+  <span class="p-category" hidden="true">inbox</span>
+  <span class="p-category" hidden="true">read</span>
+  <span class="p-category" hidden="true">source:web</span>
+</div>
+<div class="h-entry">
+  <time class="dt-published" datetime="2014-05-01T10:49:00+00:00">2014-05-01 10:49:00</time>
+  <a href="mailto:987654321@facebook.com" class="p-author h-card">
+    <span class="p-name">Ms. Mindy</span>
+    <span class="u-uid" hidden="true">987654321</span>
+    <span class="u-url" hidden="true">https://facebook.com/987654321</span>
+  </a>
+  <span class="e-content p-name">Moar message text will go here</span>
+  <span class="u-uid" hidden="true">m_mid.453ic628</span>
+  <span class="p-category" hidden="true">inbox</span>
+  <span class="p-category" hidden="true">read</span>
+  <span class="p-category" hidden="true">source:web</span>  
+</div> 
+
 
 --OTHERBOUNDARYSTRING--
 
