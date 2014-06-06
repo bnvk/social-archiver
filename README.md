@@ -5,7 +5,7 @@ A simple Python tool that downloads your pictures and private messages from Face
 
 ### Warning - this tool is not quite ready for use yet
 
-Unless you already have a Facebook App auth token, this tool will not function correctly and do what it is supposed to. I'm working on this as much as possible, but development takes time. If you are handy with Python, feel free to get in touch and help ~ @brennannovak
+Unless you already have a Facebook App auth token, this tool will not function correctly and do what it is supposed to. I'm working on this as much as possible, but development takes time. If you are handy with Python, feel free to get in touch and help ~ [https://brennannovak.com Brennan Novak] [https://github.com/brennannovak @brennannovak]
 
 
 ### Setup
