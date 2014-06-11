@@ -21,13 +21,15 @@ Now you have two options with how to proceed. Option A) is using Facebooks Graph
 ### Setup A) Using Graph Explorer
 
 * Go to Facebook's [Developer Platform](https://developers.facebook.com) page. 
+* Click on the top menu "Tools" and then select "Graph Explorer"
+* Click on "Get Access Token" then copy the value in the field on the left labeled "Access Token"
 * Edit the Facebook config values in config.yaml with the values Facebook gives you
 
 
 ### Setup B) Create New App
 
 * Go to Facebook's [Developer Platform](https://developers.facebook.com)
-* Click on top menu "Apps" and then "Create a New App" 
+* Click on the top menu "Apps" and then "Create a New App" 
 * Open the `config.yaml` file you created in step 1
 * Copy the "App ID" on Facebook into the field `facebook_app_id` in config.yaml
 * Copy the "App Secret" on Facebook into the field `facebook_secret` in config.yaml
