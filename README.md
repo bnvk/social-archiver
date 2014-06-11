@@ -23,7 +23,7 @@ Now you have two options with how to proceed. Option A) is using Facebooks Graph
 * Go to Facebook's [Developer Platform](https://developers.facebook.com) page. 
 * Click on the top menu "Tools" and then select "Graph Explorer"
 * Click on "Get Access Token" then copy the value in the field on the left labeled "Access Token"
-* Edit the Facebook config values in config.yaml with the values Facebook gives you
+* Edit the Facebook config values in `config.yaml` with the values Facebook gives you
 
 
 ### Setup B) Create New App
