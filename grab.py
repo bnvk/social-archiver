@@ -184,17 +184,31 @@ class Conversations():
         if message['message']:
 
             # Format datetime like May 25, 2014 at 3:01 PM
-            out += self.nice_datetime(message['created_time']) + ", " + message['from']['name'] + ":\n"
+            nice_datetime = self.nice_datetime(message['created_time'])
+
+            # Handle where Name is non-existant
+            if message['from']['name']:
+                from_name = message['from']['name']
+            else:
+                from_name = 'Unknown'
+            out += nice_datetime + ", " + from_name + ":\n"
             out += message['message'] + '\n'
             out += "\n"
         return out
 
     # Process text/html
     def process_html(self, message):
+
+        # Handle where Name is non-existant
+        if message['from']['name']:
+            from_name = message['from']['name']
+        else:
+            from_name = 'Unknown'
+
         out = '      <div class="h-entry">\n'
         out += '        <time class="dt-published" datetime="' + message['created_time'] + '">' + self.nice_datetime(message['created_time']) + '</time>\n'
         out += '        <a href="mailto:' + message['from']['email'] + '" class="p-author h-card">\n'
-        out += '          <span class="p-name">' + message['from']['name'] + '</span>\n'
+        out += '          <span class="p-name">' + from_name + '</span>\n'
         out += '          <span class="u-uid" hidden="true">' + message['from']['id'] + '</span>\n'
         out += '          <span class="u-url" hidden="true">https://facebook.com/' + message['from']['id'] + '</span>\n'
         out += '        </a>\n'
@@ -221,12 +235,13 @@ class Conversations():
         if 'attachments' in message:
             for attachment in message['attachments']['data']:
                 attachment_status = 'empty'
-                print "Downloading attachment " + attachment['name']
+                print "Downloading attachment " + attachment['name'] + ' id: ' + attachment['id']
                 
                 # Is Image else Other
-                if 'image_data' in attachment:
+                if 'image_data' in attachment and 'url' in attachment['image_data']:
                     response = requests.get(url = attachment['image_data']['url'], stream=True)
                     if response.status_code == 200:
+                        # Set status that attachment was downloaded
                         attachment_status = 'success'
                         with open('downloads/messages_attachments/' + attachment['name'], 'wb') as out_file:
                             shutil.copyfileobj(response.raw, out_file)
@@ -242,12 +257,16 @@ class Conversations():
                             'format': 'json'
                           })
                     if response.status_code == 200:
-                        attachment_status = 'success'
                         json = response.json()
-                        output_file = base64.b64decode(json['data'])
-                        fh2 = open('downloads/messages_attachments/' + attachment['name'], 'wb')
-                        fh2.write(output_file)
-                        fh2.close()
+                        if 'data' in json:
+                            # Set status that attachment was downloaded
+                            attachment_status = 'success'
+                            output_file = base64.b64decode(json['data'])
+                            fh2 = open('downloads/messages_attachments/' + attachment['name'], 'wb')
+                            fh2.write(output_file)
+                            fh2.close()
+                        else:
+                            print "Error: downloading attachment id: " + attachment['id']
                     del response
 
                 # Add To Parent List
@@ -289,10 +308,17 @@ class Conversations():
 
                 # Headers
                 for to in message['to']['data']:
-                    email = (to['name'] + ' <' + to['email'] + '>')
+                    if to['name']:
+                        email = to['name'] + ' <' + to['email'] + '>'
+                    else:
+                        email = to['email']
+                    # Add Name to 'Conversation with... field'
                     if email not in header_cc and to['email'] != profile['id'] + '@facebook.com':
                         header_cc.append(email)
-                        names.append(to['name'])
+                        if to['name']:
+                            names.append(to['name'])
+                        else:
+                            names.append('Unknown')
 
                 # Process Parts
                 plain += self.process_plain(message)
@@ -336,8 +362,13 @@ class Conversations():
             # Finish Email
             writer.lastpart()
 
+            # Make Year
+            year = conversation['updated_time'].split("-")[0]
+            if not os.path.exists("downloads/messages/" + year):
+                os.makedirs("downloads/messages/" + year) 
+
             # Save TXT
-            mbox = open("downloads/messages/" + conversation_id, "w")
+            mbox = open("downloads/messages/" + year + "/" + conversation_id, "w")
             mbox.write(message.getvalue().encode('utf-8'))
             mbox.close()
 
@@ -345,8 +376,11 @@ class Conversations():
         parse_result = urlparse(result['paging']['next'])
         query_string = parse_qs(parse_result[4])
 
-        print "Restarting with until: " + query_string['until'][0]
-        self.get(query_string['until'][0])
+        if query_string['until'][0] < until:
+           print "Restarting with until: " + query_string['until'][0]
+           self.get(query_string['until'][0])
+        else:
+            print "All donezo, y0!"
 
 
 # Do Defaults
@@ -355,9 +389,13 @@ make_directories()
 
 # Get Your Profile
 if os.path.isfile("downloads/facebook/you/me.json"):
-    print "Getting your profile"
-    #get_profile('/me')
+    print "Opening your profile"
     profile = json.loads(open('downloads/facebook/you/me.json').read())
+else:
+    print "Getting your profile"
+    get_profile('/me')
+    profile = json.loads(open('downloads/facebook/you/me.json').read())
+
 
 # CL args
 if 'friends' in (sys.argv):
@@ -374,6 +412,13 @@ if 'messages' in (sys.argv):
     myConversations = Conversations(profile) 
     myConversations.get('start')
 
+if 'test' in (sys.argv):
+    # Manually add OBJECT_ID to save a blob of JSON for inspection
+    test = graph.get_object('OBJECT_ID')
+    with open("test.json", "w") as outfile:
+        json.dump(test, outfile, indent=4)
+
+# All Done!
 print "Downloading is all done, takk :)"
 
 
