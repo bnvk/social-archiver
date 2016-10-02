@@ -6,7 +6,7 @@ A simple tool written in python 2.7 that downloads your pictures, data, and priv
 
 ### WARNING - this tool is not ready for prime time yet
 
-Unless you already have a Facebook App auth token, this tool will not function correctly and do what it is supposed to. I'm working on this as much as possible, but development takes time. If you are handy with Python, feel free to get in touch and help ~ [Brennan Novak](https://brennannovak.com ) or [@brennannovak](https://github.com/brennannovak )
+Unless you already have a Facebook App auth token, this tool will not function correctly and do what it is supposed to. I'm working on this as much as possible, but development takes time. If you are handy with Python, feel free to get in touch and help ~ [Brennan Novak](https://brennannovak.com ) or [@brennannovak](https://twitter.com/brennannovak )
  
 
 ### Setup
